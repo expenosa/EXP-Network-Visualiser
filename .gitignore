@@ -1,0 +1,7 @@
+/env/
+**/__pycache__/
+/build/
+/dist/
+transcoder.spec
+*.log
+*.cutree
