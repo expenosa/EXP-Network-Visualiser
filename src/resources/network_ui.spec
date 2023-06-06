@@ -14,7 +14,7 @@ block_cipher = None
 
 
 a = Analysis(
-    ['src\\python\\network_ui.py'],
+    ['..\\python\\network_ui.py'],
     pathex=[],
     binaries=binaries,
     datas=datas,
@@ -44,12 +44,12 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    version='src\\resources\\file_version_info.txt',
-    icon=['src\\resources\\ffmpeg_icon.ico'],
+    version='file_version_info.txt',
+    icon=['icon.ico'],
 )

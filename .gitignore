@@ -5,3 +5,4 @@
 transcoder.spec
 *.log
 *.cutree
+*.pjson

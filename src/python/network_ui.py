@@ -1,4 +1,4 @@
-import os
+import os, sys
 from argparse import ArgumentParser
 from nicegui import app, ui
 import nicegui.globals as niceglobals
@@ -57,7 +57,8 @@ def update_elements():
 def redraw_graph(save=True):
     niceglobals.get_client().body_html = "" # Remove existing HTML
     html = network.generate(netgraph)
-    save_netgraph()
+    if save:
+        save_netgraph()
     ui.add_body_html(html)
     update_elements()
     ui.open('/')
@@ -107,7 +108,7 @@ def remove_link(nodeA: str, nodeB: str):
 
 
 def create_buttons_row():
-    with ui.row():
+    with ui.footer():
         # Create Node Button
         with ui.dialog() as new_node_dialog, ui.card():
             ui.markdown("New Node")
@@ -147,7 +148,7 @@ def create_buttons_row():
                 edit_node_shape_select = ui.select(SHAPES, value=SHAPES[0]).style(DEFAULT_FIELD_STYLE)
                 edit_node_notes_ta = ui.textarea("Notes").style(DEFAULT_FIELD_STYLE)
                 def column_visible(value) -> bool:
-                    exists = value in node_names
+                    exists = value and value in node_names
                     if exists:
                         node = netgraph.get_node(value)
                         edit_node_colour_select.value = node.colour
@@ -155,7 +156,7 @@ def create_buttons_row():
                         edit_node_notes_ta.value = node.notes
                     return exists
 
-                column.bind_visibility_to(edit_node_select, 'value', column_visible)
+                column.bind_visibility_from(edit_node_select, 'value', column_visible)
 
             with ui.row():
                 def edit_node_clicked():
@@ -263,11 +264,11 @@ def file_selection_dialog() -> str:
             await choose_file(False)
         ui.button('Open Existing', on_click=open_file)
         ui.button('Create New', on_click=new_file)
-        ui.button('Exit', on_click=app.shutdown)
 
     
     dialog.props('persistent')
     dialog.open()
+
 
 
 def main():
@@ -295,7 +296,6 @@ def main():
     reload = os.path.isdir('env')
     window = (1280,800) if native else None
     ui.run(reload=reload, title="Network Visualiser", dark=True, window_size=window) #TODO favicon
-    # ui.run(reload=reload, title="Network Visualiser", dark=True)
 
 
 if __name__ in {"__main__", "__mp_main__"}:

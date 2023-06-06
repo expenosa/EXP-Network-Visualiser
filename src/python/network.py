@@ -5,8 +5,8 @@ from typing import List
 from pyvis.network import Network
 import jsonpickle
 
-COLOURS = ['white', 'gold', 'red']
-SHAPES = ['dot', 'triangle', 'circle']
+COLOURS = ['White', 'Pink', 'Red', 'Maroon', 'Yellow', 'Green', 'Lime', 'Green', 'Olive', 'Aqua', 'Blue', 'Navy', 'Fuchsia', 'Purple', 'Teal', 'Silver', 'Gold']
+SHAPES = ['dot', 'circle', 'ellipse', 'triangle', 'triangleDown', 'square', 'box', 'diamond', 'star', 'database']
 
 
 class NetGraphException(Exception):
@@ -103,7 +103,7 @@ class NetworkGraph():
 def generate_custom(net: Network, graph: NetworkGraph) -> str:
     ''' Generate HTML to display the network graph '''
     for n in graph._nodes.values():
-        net.add_node(n.name, label=n.name, color=n.colour, shape=n.shape)
+        net.add_node(n.name, label=n.name, title=f'{n.name}\n{n.notes}', color=n.colour, shape=n.shape)
     
     for n in graph._nodes.values():
         for e in n.links:
