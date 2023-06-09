@@ -1,8 +1,6 @@
-#######################################################################################################
-# Simple program that transcodes a clip to a smaller version that fits within the file size limit given
-#######################################################################################################
 from typing import List
 from pyvis.network import Network
+from uuid import uuid4
 import jsonpickle
 
 COLOURS = ['White', 'Pink', 'Red', 'Maroon', 'Yellow', 'Green', 'Lime', 'Green', 'Olive', 'Aqua', 'Blue', 'Navy', 'Fuchsia', 'Purple', 'Teal', 'Silver', 'Gold']
@@ -16,7 +14,7 @@ class NetGraphException(Exception):
 
 
 class Link():
-    def __init__(self, _to:str, msg: str=""):
+    def __init__(self, _to: str, msg: str=""):
         self._to = _to.strip()
         self.msg = msg.strip()
 
@@ -28,71 +26,122 @@ class Node():
         obj.notes = ""
         return obj
 
-    def __init__(self, name: str, colour='white', shape='dot', notes=""):
+    def __init__(self, name: str, colour='White', shape='dot', notes=""):
+        self.id = str(uuid4())
         self.name = name.strip()
         self.colour = colour.strip()
         self.shape = shape.strip()
         self.links = list()
         self.notes = notes.strip()
     
+
+    def get_link(self, other_id: str) -> Link:
+        ''' Fetch link to other node by id. None if no link could be found '''
+        for link in self.links:
+            if link._to == other_id:
+                return link
+        return None
+
+
     def add_link(self, link: Link):
         self.links.append(link)
+
 
     def remove_link(self, name):
         self.links = [x for x in self.links if x._to != name]
 
 
-## TODO use unique ids for nodes so that renames do not require searching through every node?
+    def is_valid(self):
+        return self.id and self.name and \
+            self.colour in COLOURS and \
+            self.shape in SHAPES
+
+
 class NetworkGraph():
     def __init__(self, nodes: List[Node]=[]):
-        self._nodes = { n.name: n for n in nodes }
+        self._nodes = { n.id: n for n in nodes }
+        self._names_map = { n.name: n.id for n in nodes }
         self.add_node(Node("First Node"))
 
 
     def get_all_node_names(self) -> List[str]:
-        return list(self._nodes.keys())
+        return list(self._names_map.keys())
+
+
+    def get_node_by_id(self, id: str) -> Node:
+        if not id in self._nodes:
+            raise NetGraphException("Node does not exist: " + id)
+        return self._nodes[id]
 
 
     def get_node(self, name: str) -> Node:
         if not self.contains_node(name):
             raise NetGraphException("Node does not exist: " + name)
-        return self._nodes[name]
+        id = self._names_map[name]
+        return self._nodes[id]
 
 
     def contains_node(self, name: str) -> bool:
-        all_names = {x.lower() for x in self.get_all_node_names()}
-        return name.lower() in all_names
+        return name in self._names_map
 
 
     def add_node(self, node: Node):
+        if not node.is_valid():
+            raise NetGraphException("Node is not valid")
         if self.contains_node(node.name):
             raise NetGraphException("Node already exists: " + node.name)
-        self._nodes[node.name] = node
+        self._nodes[node.id] = node
+        self._names_map[node.name] = node.id
 
 
-    def add_link(self, from_node: str, to_node: str, msg: str=""):
-        ## make sure they exist
-        if not self.contains_node(from_node):
-            raise NetGraphException("Node does not exist: " + from_node)
-        if not self.contains_node(to_node):
-            raise NetGraphException("Node does not exist: " + to_node)
-        node = self._nodes[from_node]
-        node.add_link(Link(to_node, msg))
+    def rename_node(self, old_name, new_name):
+        node = self.get_node(old_name)
+        node.name = new_name
+        self._names_map.pop(old_name)
+        self._names_map[new_name] = node.id
+
+
+    def get_link(self, nodeA: str, nodeB: str, throw_not_found=True):
+        a = self.get_node(nodeA)
+        b = self.get_node(nodeB)
+        link = a.get_link(b.id)
+
+        if not link: # try other node if link was not found
+            link = b.get_link(a.id)
+        
+        if not link and throw_not_found:
+            raise(NetGraphException(f"Link not found between '{nodeA}' and '{nodeB}'"))
+        return link
+    
+
+    def add_link(self, from_node: str, to_node: str, msg: str=""):        
+        node = self.get_node(from_node)
+        other_node = self.get_node(to_node)
+
+        if self.get_link(from_node, to_node, throw_not_found=False):
+            raise(NetGraphException(f"A link between '{from_node}' and '{to_node}' already exists"))
+
+        node.add_link(Link(other_node.id, msg))
 
     
     def remove_link(self, nodeA: str, nodeB: str):
         a = self.get_node(nodeA)
         b = self.get_node(nodeB)
-        a.remove_link(nodeB)
-        b.remove_link(nodeA)
+        a.remove_link(b.id)
+        b.remove_link(a.id)
 
-    ## TODO edit link
-    
-    ## TODO rename node
+
+    def edit_link(self, nodeA: str, nodeB: str, msg: str):
+        link = self.get_link(nodeA, nodeB)
+        link.msg = msg
+
 
     def delete_node(self, name: str):
-        if name in self._nodes:
-            self._nodes.pop(name)
+        node = self.get_node(name)
+        if node.id in self._nodes:
+            self._nodes.pop(node.id)
+        if node.name in self._names_map:
+            self._names_map.pop(node.name)
         
         ## Delete links from other nodes
         for n in self._nodes.values():
@@ -107,7 +156,8 @@ def generate_custom(net: Network, graph: NetworkGraph) -> str:
     
     for n in graph._nodes.values():
         for e in n.links:
-            net.add_edge(n.name, e._to, title=e.msg)
+            to_node = graph.get_node_by_id(e._to)
+            net.add_edge(n.name, to_node.name, title=e.msg)
     
     return net.generate_html()
 
@@ -115,7 +165,7 @@ def generate_custom(net: Network, graph: NetworkGraph) -> str:
 
 def generate(graph: NetworkGraph) -> str:
     ''' Generate HTML to display the network graph '''
-    net = Network(height="85vh", width="100%", bgcolor="#222222", font_color="white",
+    net = Network(height="90vh", width="100%", bgcolor="#222222", font_color="white",
                   select_menu=True, filter_menu=False)
     net.toggle_physics(True)
     #net.show_buttons()

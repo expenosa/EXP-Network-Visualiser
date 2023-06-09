@@ -1,4 +1,4 @@
-import os, sys
+import os
 from argparse import ArgumentParser
 from nicegui import app, ui
 import nicegui.globals as niceglobals
@@ -14,18 +14,26 @@ DEFAULT_FIELD_STYLE = 'width: 500px;'
 save_file = None
 
 netgraph = network.NetworkGraph()
-# netgraph.add_node(network.Node("Chapel Of Anticipation", colour='gold', shape='triangle'))
-# netgraph.add_node(network.Node("Example Node"))
-# netgraph.add_link("Chapel Of Anticipation", "Example Node")
 
 node_names = ['']
 node_names.extend(netgraph.get_all_node_names())
 
 
-def notify_on_netgraph_error(func):
+def clear_comp_values(*args):
+    ''' Return nicegui components to default blank values '''
+    for comp in args:
+        comp.value = ""
+
+
+def netgraph_modification(func):
+    ''' Decorator function that catches exceptions, saves and redraws the network graph.
+        NetGraphException messages are displayed to the user.
+    '''
     def inner(*args, **kwargs):
         try:
             func(*args, **kwargs)
+            save_netgraph()
+            redraw_graph()
         except network.NetGraphException as e:
             ui.notify(e.msg, type='negative')
             raise e
@@ -45,7 +53,7 @@ def load_netgraph():
         netgraph = network.load_network_graph(save_file)
     else:
         netgraph = network.NetworkGraph()
-    redraw_graph(save=False)
+    redraw_graph()
 
 
 def update_elements():
@@ -54,57 +62,58 @@ def update_elements():
     ui.update()
 
 
-def redraw_graph(save=True):
+def redraw_graph():
     niceglobals.get_client().body_html = "" # Remove existing HTML
     html = network.generate(netgraph)
-    if save:
-        save_netgraph()
     ui.add_body_html(html)
     update_elements()
     ui.open('/')
 
 
-@notify_on_netgraph_error
+@netgraph_modification
 def add_node(name, colour, shape):
     print(f"Adding new node: '{name}' with colour {colour} and shape {shape}")
     netgraph.add_node(network.Node(name, colour=colour, shape=shape))
 
-    redraw_graph()
+
+@netgraph_modification
+def rename_node(old_name, new_name):
+    print(f"Renaming node '{old_name}' to '{new_name}")
+    netgraph.rename_node(old_name, new_name)
 
 
-@notify_on_netgraph_error
+@netgraph_modification
 def edit_node(name, colour, shape, notes):
     print(f"Editing node: '{name}' to colour {colour} and shape {shape} with notes: {notes}")
     node = netgraph.get_node(name)
     node.colour = colour
     node.shape = shape
     node.notes = notes
-    redraw_graph()
 
 
-@notify_on_netgraph_error
-def connect_nodes(nodeA: str, nodeB: str, msg: str=""):
+@netgraph_modification
+def create_link(nodeA: str, nodeB: str, msg: str=""):
     print(f"Connecting '{nodeA}' to '{nodeB}' with message: '{msg}'")
     netgraph.add_link(nodeA, nodeB, msg)
-    redraw_graph()
 
 
-@notify_on_netgraph_error
+@netgraph_modification
+def edit_link(nodeA: str, nodeB: str, msg: str):
+    print(f"Editing link bettwen '{nodeA}' and '{nodeB}' with message: '{msg}'")
+    netgraph.edit_link(nodeA, nodeB, msg)
+
+
+@netgraph_modification
 def remove_node(name: str):
     print(f"Deleting node '{name}'")
     netgraph.delete_node(name)
-    redraw_graph()
 
 
-@notify_on_netgraph_error
+@netgraph_modification
 def remove_link(nodeA: str, nodeB: str):
     print(f"Deleting link between {nodeA} and {nodeB}")
     netgraph.remove_link(nodeA, nodeB)
-    redraw_graph()
 
-
-##TODO edit link
-##TODO rename node
 
 
 def create_buttons_row():
@@ -113,26 +122,46 @@ def create_buttons_row():
         with ui.dialog() as new_node_dialog, ui.card():
             ui.markdown("New Node")
             node_name_field = ui.input(label="Node name").style(DEFAULT_FIELD_STYLE)
+
             ui.label("Colour")
             create_node_colour_select = ui.select(COLOURS, value=COLOURS[0]).style(DEFAULT_FIELD_STYLE)
+
             ui.label("Shape")
             create_node_shape_select = ui.select(SHAPES, value=SHAPES[0]).style(DEFAULT_FIELD_STYLE)
             link_from_field = ui.input(label="Linked from (optional)", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
             link_msg_field = ui.input(label="Link Message (optional)").style(DEFAULT_FIELD_STYLE)
+
             with ui.row():
                 def create_node_clicked():
+                    if not node_name_field.value:
+                        return
                     new_node_dialog.close()
                     add_node(node_name_field.value, create_node_colour_select.value, create_node_shape_select.value)
                     if (link_from_field.value):
-                        connect_nodes(node_name_field.value, link_from_field.value, link_msg_field.value)
-                    node_name_field.value = ""
-                    link_from_field.value = ""
-                    link_msg_field.value = ""
+                        create_link(node_name_field.value, link_from_field.value, link_msg_field.value)
+                    clear_comp_values(node_name_field, link_from_field, link_msg_field)
                 ui.button('Create', on_click=create_node_clicked)
                 ui.button('Close', on_click=new_node_dialog.close)
 
         ui.button('Create Node', on_click=new_node_dialog.open)
         
+        # Rename Node Button
+        with ui.dialog() as rename_node_dialog, ui.card():
+            ui.markdown("Rename Node")
+            old_name_input = ui.input(label="Current Name", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
+            new_name_input = ui.input(label="New Name").style(DEFAULT_FIELD_STYLE)
+
+            with ui.row():
+                def rename_node_clicked():
+                    if not old_name_input.value or not new_name_input.value:
+                        return
+                    rename_node_dialog.close()
+                    rename_node(old_name_input.value, new_name_input.value)
+                    clear_comp_values(old_name_input, new_name_input)
+                ui.button('Rename', on_click=rename_node_clicked)
+                ui.button('Close', on_click=rename_node_dialog.close)
+
+        ui.button('Rename Node', on_click=rename_node_dialog.open)
 
 
         # Edit Node Button
@@ -144,6 +173,7 @@ def create_buttons_row():
             with ui.column() as column:
                 ui.label("Colour")
                 edit_node_colour_select = ui.select(COLOURS, value=COLOURS[0]).style(DEFAULT_FIELD_STYLE)
+
                 ui.label("Shape")
                 edit_node_shape_select = ui.select(SHAPES, value=SHAPES[0]).style(DEFAULT_FIELD_STYLE)
                 edit_node_notes_ta = ui.textarea("Notes").style(DEFAULT_FIELD_STYLE)
@@ -163,7 +193,7 @@ def create_buttons_row():
                     edit_node_dialog.close()
                     edit_node(edit_node_select.value, edit_node_colour_select.value, 
                               edit_node_shape_select.value, edit_node_notes_ta.value)
-                    edit_node_select.value = ""
+                    clear_comp_values(edit_node_select)
                 apply_btn = ui.button('Apply', on_click=edit_node_clicked)
                 apply_btn.bind_visibility_from(column)
                 ui.button('Close', on_click=edit_node_dialog.close)
@@ -176,18 +206,23 @@ def create_buttons_row():
             ui.markdown("Delete Node")
             #node_select = ui.select(node_names, with_input=True).style(DEFAULT_FIELD_STYLE)
             delete_node_select = ui.input(label="Node Name", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
+
             with ui.row():
                 def delete_node_clicked():
+                    if not delete_node_select.value:
+                        return
                     delete_node_dialog.close()
                     remove_node(delete_node_select.value)
-                    delete_node_select.value=""
+                    clear_comp_values(delete_node_select)
                 ui.button('Delete', on_click=delete_node_clicked)
                 ui.button('Close', on_click=delete_node_dialog.close)
 
         ui.button('Delete Node', on_click=delete_node_dialog.open)
     
+
         ## Add spacer
         ui.label("| |")
+
 
         # Create Link Button 
         with ui.dialog() as new_link_dialog, ui.card():
@@ -197,17 +232,54 @@ def create_buttons_row():
             # nodeB_select = ui.select(node_names, with_input=True).style(DEFAULT_FIELD_STYLE)
             nodeB_select = ui.input(label="To Node", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
             msg_text = ui.textarea('Link Message').style(DEFAULT_FIELD_STYLE)
+            
+
             with ui.row():
                 def create_link_clicked():
+                    if not nodeA_select.value or not nodeB_select.value:
+                        return
                     new_link_dialog.close()
-                    connect_nodes(nodeA_select.value, nodeB_select.value, msg_text.value)
-                    nodeA_select.value = ""
-                    nodeB_select.value = ""
-                    msg_text.value = ""
+                    create_link(nodeA_select.value, nodeB_select.value, msg_text.value)
+                    clear_comp_values(nodeA_select, nodeB_select, msg_text)
                 ui.button('Create', on_click=create_link_clicked)
                 ui.button('Close', on_click=new_link_dialog.close)
 
         ui.button('Add Link', on_click=new_link_dialog.open)
+
+
+        # Edit Link Button
+        with ui.dialog() as edit_link_dialog, ui.card():
+            ui.markdown("Edit Link")
+            edit_nodeA_input = ui.input(label="From Node", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
+            edit_nodeB_input = ui.input(label="To Node", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
+            edit_msg_text = ui.textarea('Link Message').style(DEFAULT_FIELD_STYLE)
+            
+            def edit_msg_visibility(value) -> bool:
+                a_exists = edit_nodeA_input.value in node_names
+                b_exists = edit_nodeB_input.value in node_names
+                if a_exists and b_exists:
+                    try:
+                        link = netgraph.get_link(edit_nodeA_input.value, edit_nodeB_input.value)
+                        edit_msg_text.value = link.msg
+                        return True
+                    except network.NetGraphException:
+                        pass # Ignore and return false
+                return False
+
+            edit_msg_text.bind_visibility_from(edit_nodeB_input, 'value', edit_msg_visibility)
+
+            with(ui.row()):
+                def edit_link_clicked():
+                    if not edit_nodeA_input.value or not edit_nodeB_input.value:
+                        return
+                    edit_link_dialog.close()
+                    edit_link(edit_nodeA_input.value, edit_nodeB_input.value, edit_msg_text.value)
+                    clear_comp_values(edit_nodeA_input, edit_nodeB_input, edit_msg_text)
+                ui.button('Apply', on_click=edit_link_clicked).bind_visibility_from(edit_msg_text)
+                ui.button('Close', on_click=edit_link_dialog.close)
+
+        ui.button('Edit Link', on_click=edit_link_dialog.open)
+
 
 
         # Remove Link Button
@@ -215,22 +287,20 @@ def create_buttons_row():
             ui.markdown("Remove Link")
             remove_nodeA_select = ui.input(label="First Node", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
             remove_nodeB_select = ui.input(label="Second Node", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
+
             with ui.row():
                 def remove_link_clicked():
+                    if not remove_nodeA_select.value or not remove_nodeB_select.value:
+                        return
                     remove_link_dialog.close()
                     remove_link(remove_nodeA_select.value, remove_nodeB_select.value)
-                    remove_nodeA_select.value = ""
-                    remove_nodeB_select.value = ""
+                    clear_comp_values(remove_nodeA_select, remove_nodeB_select)
                 ui.button('Remove', on_click=remove_link_clicked)
                 ui.button('Close', on_click=remove_link_dialog.close)
         
         ui.button('Remove Link', on_click=remove_link_dialog.open)
 
-    ## TODO add notes to node
-    ## TODO rename node
-    ## TODO edit link
-    ## TODO button to download HTML
-    ## TODO button to download json data
+
 
 def load_from_file(abspath):
     global save_file
@@ -246,6 +316,7 @@ def load_from_file(abspath):
 def file_selection_dialog() -> str:
     with ui.dialog() as dialog, ui.card():
         ui.markdown("Choose working file...")
+
         async def choose_file(open: bool):
             import webview
             mode = webview.OPEN_DIALOG if open else webview.SAVE_DIALOG
@@ -258,13 +329,13 @@ def file_selection_dialog() -> str:
                 ui.notify(f"Using File: {working_file}")
                 load_from_file(working_file)
                 dialog.close()
+                
         async def open_file():
             await choose_file(True)
         async def new_file():
             await choose_file(False)
         ui.button('Open Existing', on_click=open_file)
         ui.button('Create New', on_click=new_file)
-
     
     dialog.props('persistent')
     dialog.open()
@@ -280,7 +351,7 @@ def main():
     save_file = args.file
     native = not args.web
 
-    ## Allow javscript resources for pyvsi to be served
+    ## Allow javscript resources for pyvis to be served
     app.add_static_files('/lib', 'lib')
 
     #redraw_graph()
