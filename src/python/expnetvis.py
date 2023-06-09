@@ -2,18 +2,18 @@ import os
 from argparse import ArgumentParser
 from nicegui import app, ui
 import nicegui.globals as niceglobals
-import network
+import expnetgraph
 
 VERSION=0.1
 
-COLOURS = network.COLOURS
-SHAPES = network.SHAPES
+COLOURS = expnetgraph.COLOURS
+SHAPES =expnetgraph.SHAPES
 
 DEFAULT_FIELD_STYLE = 'width: 500px;'
 
 save_file = None
 
-netgraph = network.NetworkGraph()
+netgraph = expnetgraph.NetworkGraph()
 
 node_names = ['']
 node_names.extend(netgraph.get_all_node_names())
@@ -34,7 +34,7 @@ def netgraph_modification(func):
             func(*args, **kwargs)
             save_netgraph()
             redraw_graph()
-        except network.NetGraphException as e:
+        except expnetgraph.NetGraphException as e:
             ui.notify(e.msg, type='negative')
             raise e
     return inner
@@ -43,16 +43,16 @@ def netgraph_modification(func):
 def save_netgraph():
     global save_file
     if save_file:
-        network.save_network_graph(save_file, netgraph)
+        expnetgraph.save_network_graph(save_file, netgraph)
 
 
 def load_netgraph():
     global netgraph
     global save_file
     if save_file:
-        netgraph = network.load_network_graph(save_file)
+        netgraph = expnetgraph.load_network_graph(save_file)
     else:
-        netgraph = network.NetworkGraph()
+        netgraph = expnetgraph.NetworkGraph()
     redraw_graph()
 
 
@@ -64,7 +64,7 @@ def update_elements():
 
 def redraw_graph():
     niceglobals.get_client().body_html = "" # Remove existing HTML
-    html = network.generate(netgraph)
+    html = expnetgraph.generate(netgraph)
     ui.add_body_html(html)
     update_elements()
     ui.open('/')
@@ -73,7 +73,7 @@ def redraw_graph():
 @netgraph_modification
 def add_node(name, colour, shape):
     print(f"Adding new node: '{name}' with colour {colour} and shape {shape}")
-    netgraph.add_node(network.Node(name, colour=colour, shape=shape))
+    netgraph.add_node(expnetgraph.Node(name, colour=colour, shape=shape))
 
 
 @netgraph_modification
@@ -262,7 +262,7 @@ def create_buttons_row():
                         link = netgraph.get_link(edit_nodeA_input.value, edit_nodeB_input.value)
                         edit_msg_text.value = link.msg
                         return True
-                    except network.NetGraphException:
+                    except expnetgraph.NetGraphException:
                         pass # Ignore and return false
                 return False
 
@@ -357,7 +357,7 @@ def main():
     #redraw_graph()
     create_buttons_row()
 
-    # load graph from file if it exists
+    # load graph from file if it exists, otherwise show dialog
     if save_file:
         load_from_file(save_file)
     else:
@@ -366,7 +366,7 @@ def main():
     # Only reload on src changes in dev environment
     reload = os.path.isdir('env')
     window = (1280,800) if native else None
-    ui.run(reload=reload, title="Network Visualiser", dark=True, window_size=window) #TODO favicon
+    ui.run(reload=reload, title="EXP Network Visualiser", dark=True, window_size=window, favicon="lib/favicon.ico")
 
 
 if __name__ in {"__main__", "__mp_main__"}:
