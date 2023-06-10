@@ -7,15 +7,16 @@ import expnetgraph
 VERSION=0.1
 
 COLOURS = expnetgraph.COLOURS
-SHAPES =expnetgraph.SHAPES
+SHAPES = expnetgraph.SHAPES
 
 DEFAULT_FIELD_STYLE = 'width: 500px;'
 
 save_file = None
 
 netgraph = expnetgraph.NetworkGraph()
+netgraph.add_node(expnetgraph.Node("First Node")) # A hack to force autocompletion to work. Never works if node_names is empty.
 
-node_names = ['']
+node_names = []
 node_names.extend(netgraph.get_all_node_names())
 
 
@@ -57,12 +58,14 @@ def load_netgraph():
 
 
 def update_elements():
+    ''' Update UI elements so they reflect current changes such as autocomplete values '''
     node_names.clear()
     node_names.extend(netgraph.get_all_node_names())
     ui.update()
 
 
 def redraw_graph():
+    ''' Rerender and graph HTML and force the client to refresh the page '''
     niceglobals.get_client().body_html = "" # Remove existing HTML
     html = expnetgraph.generate(netgraph)
     ui.add_body_html(html)
@@ -115,21 +118,30 @@ def remove_link(nodeA: str, nodeB: str):
     netgraph.remove_link(nodeA, nodeB)
 
 
+def create_input(*args, **kwargs):
+    return ui.input(*args, **kwargs).style(DEFAULT_FIELD_STYLE)
+
+def create_dropdown(*args, **kwargs):
+    return ui.select(*args, **kwargs).style(DEFAULT_FIELD_STYLE)
+
+def create_textarea(*args, **kwargs):
+    return ui.textarea(*args, **kwargs).style(DEFAULT_FIELD_STYLE)
+
 
 def create_buttons_row():
     with ui.footer():
         # Create Node Button
         with ui.dialog() as new_node_dialog, ui.card():
             ui.markdown("New Node")
-            node_name_field = ui.input(label="Node name").style(DEFAULT_FIELD_STYLE)
+            node_name_field = create_input(label="Node name")
 
             ui.label("Colour")
-            create_node_colour_select = ui.select(COLOURS, value=COLOURS[0]).style(DEFAULT_FIELD_STYLE)
+            create_node_colour_select = create_dropdown(COLOURS, value=COLOURS[0])
 
             ui.label("Shape")
-            create_node_shape_select = ui.select(SHAPES, value=SHAPES[0]).style(DEFAULT_FIELD_STYLE)
-            link_from_field = ui.input(label="Linked from (optional)", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
-            link_msg_field = ui.input(label="Link Message (optional)").style(DEFAULT_FIELD_STYLE)
+            create_node_shape_select = create_dropdown(SHAPES, value=SHAPES[0])
+            link_from_field = create_input(label="Linked from (optional)", autocomplete=node_names)
+            link_msg_field = create_input(label="Link Message (optional)")
 
             with ui.row():
                 def create_node_clicked():
@@ -148,8 +160,8 @@ def create_buttons_row():
         # Rename Node Button
         with ui.dialog() as rename_node_dialog, ui.card():
             ui.markdown("Rename Node")
-            old_name_input = ui.input(label="Current Name", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
-            new_name_input = ui.input(label="New Name").style(DEFAULT_FIELD_STYLE)
+            old_name_input = create_input(label="Current Name", autocomplete=node_names)
+            new_name_input = create_input(label="New Name")
 
             with ui.row():
                 def rename_node_clicked():
@@ -167,17 +179,19 @@ def create_buttons_row():
         # Edit Node Button
         with ui.dialog() as edit_node_dialog, ui.card():
             ui.markdown("Edit Node")
-            #node_select = ui.select(node_names, with_input=True).style(DEFAULT_FIELD_STYLE)
-            edit_node_select = ui.input(label="Node Name", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
+            #node_select = create_dropdown(node_names, with_input=True)
+            edit_node_select = create_input(label="Node Name", autocomplete=node_names)
 
             with ui.column() as column:
                 ui.label("Colour")
-                edit_node_colour_select = ui.select(COLOURS, value=COLOURS[0]).style(DEFAULT_FIELD_STYLE)
+                edit_node_colour_select = create_dropdown(COLOURS, value=COLOURS[0])
 
                 ui.label("Shape")
-                edit_node_shape_select = ui.select(SHAPES, value=SHAPES[0]).style(DEFAULT_FIELD_STYLE)
-                edit_node_notes_ta = ui.textarea("Notes").style(DEFAULT_FIELD_STYLE)
+                edit_node_shape_select = create_dropdown(SHAPES, value=SHAPES[0])
+                edit_node_notes_ta = create_textarea("Notes")
+
                 def column_visible(value) -> bool:
+                    ''' Function to reflect existing values for selected node '''
                     exists = value and value in node_names
                     if exists:
                         node = netgraph.get_node(value)
@@ -204,8 +218,8 @@ def create_buttons_row():
         # Delete Node Button
         with ui.dialog() as delete_node_dialog, ui.card():
             ui.markdown("Delete Node")
-            #node_select = ui.select(node_names, with_input=True).style(DEFAULT_FIELD_STYLE)
-            delete_node_select = ui.input(label="Node Name", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
+            #node_select = create_dropdown(node_names, with_input=True)
+            delete_node_select = create_input(label="Node Name", autocomplete=node_names)
 
             with ui.row():
                 def delete_node_clicked():
@@ -227,11 +241,11 @@ def create_buttons_row():
         # Create Link Button 
         with ui.dialog() as new_link_dialog, ui.card():
             ui.markdown("New Link")
-            # nodeA_select = ui.select(node_names, with_input=True).style(DEFAULT_FIELD_STYLE)
-            nodeA_select = ui.input(label="From Node", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
-            # nodeB_select = ui.select(node_names, with_input=True).style(DEFAULT_FIELD_STYLE)
-            nodeB_select = ui.input(label="To Node", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
-            msg_text = ui.textarea('Link Message').style(DEFAULT_FIELD_STYLE)
+            # nodeA_select = create_dropdown(node_names, with_input=True)
+            nodeA_select = create_input(label="From Node", autocomplete=node_names)
+            # nodeB_select = create_dropdown(node_names, with_input=True)
+            nodeB_select = create_input(label="To Node", autocomplete=node_names)
+            msg_text = create_textarea('Link Message')
             
 
             with ui.row():
@@ -250,11 +264,12 @@ def create_buttons_row():
         # Edit Link Button
         with ui.dialog() as edit_link_dialog, ui.card():
             ui.markdown("Edit Link")
-            edit_nodeA_input = ui.input(label="From Node", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
-            edit_nodeB_input = ui.input(label="To Node", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
-            edit_msg_text = ui.textarea('Link Message').style(DEFAULT_FIELD_STYLE)
+            edit_nodeA_input = create_input(label="From Node", autocomplete=node_names)
+            edit_nodeB_input = create_input(label="To Node", autocomplete=node_names)
+            edit_msg_text = create_textarea('Link Message')
             
             def edit_msg_visibility(value) -> bool:
+                ''' Function to load the existing values for the selected link '''
                 a_exists = edit_nodeA_input.value in node_names
                 b_exists = edit_nodeB_input.value in node_names
                 if a_exists and b_exists:
@@ -285,8 +300,8 @@ def create_buttons_row():
         # Remove Link Button
         with ui.dialog() as remove_link_dialog, ui.card():
             ui.markdown("Remove Link")
-            remove_nodeA_select = ui.input(label="First Node", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
-            remove_nodeB_select = ui.input(label="Second Node", autocomplete=node_names).style(DEFAULT_FIELD_STYLE)
+            remove_nodeA_select = create_input(label="First Node", autocomplete=node_names)
+            remove_nodeB_select = create_input(label="Second Node", autocomplete=node_names)
 
             with ui.row():
                 def remove_link_clicked():
@@ -303,6 +318,7 @@ def create_buttons_row():
 
 
 def load_from_file(abspath):
+    ''' Load data from file and render the netgraph '''
     global save_file
     save_file = os.path.abspath(abspath)
     print(f"Loading from file: {save_file}")
@@ -313,7 +329,8 @@ def load_from_file(abspath):
     
 
 
-def file_selection_dialog() -> str:
+def file_selection_dialog():
+    ''' Show the 'Create New'/'Open Existing' dialog and load the graph using that chosen file selection '''
     with ui.dialog() as dialog, ui.card():
         ui.markdown("Choose working file...")
 
@@ -323,6 +340,7 @@ def file_selection_dialog() -> str:
             file_types = ('PJson Files (*.pjson)', 'All files (*.*)')
             pwd = os.path.abspath('.')
             working_file = await app.native.main_window.create_file_dialog(mode, directory=pwd, allow_multiple=False, file_types=file_types, save_filename='untitled.pjson')
+
             if working_file:
                 if isinstance(working_file, tuple):
                     working_file = working_file[0]
@@ -334,10 +352,11 @@ def file_selection_dialog() -> str:
             await choose_file(True)
         async def new_file():
             await choose_file(False)
+
         ui.button('Open Existing', on_click=open_file)
         ui.button('Create New', on_click=new_file)
     
-    dialog.props('persistent')
+    dialog.props('persistent') # So this dialog cannot be dismissed normally
     dialog.open()
 
 

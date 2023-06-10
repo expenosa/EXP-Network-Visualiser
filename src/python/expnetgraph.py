@@ -61,7 +61,6 @@ class NetworkGraph():
     def __init__(self, nodes: List[Node]=[]):
         self._nodes = { n.id: n for n in nodes }
         self._names_map = { n.name: n.id for n in nodes }
-        self.add_node(Node("First Node"))
 
 
     def get_all_node_names(self) -> List[str]:
