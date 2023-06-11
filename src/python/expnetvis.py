@@ -1,10 +1,15 @@
+__author__ = "Expenosa"
+__copyright__ = "Copyright (C) 2023 Expenosa"
+__license__ = "MIT License"
+__version__ = "0.1"
+
 import os
 from argparse import ArgumentParser
 from nicegui import app, ui
 import nicegui.globals as niceglobals
+from nicegui.events import KeyEventArguments
 import expnetgraph
 
-VERSION=0.1
 
 COLOURS = expnetgraph.COLOURS
 SHAPES = expnetgraph.SHAPES
@@ -317,6 +322,17 @@ def create_buttons_row():
 
 
 
+def init_keybinds():
+    ''' Add keybinds such as refresh on F5 '''
+    def handle_key(e: KeyEventArguments):
+        if e.key == 'F5' and not e.action.repeat:
+            if e.action.keyup:
+                ui.open('/')
+
+    ui.keyboard(on_key=handle_key)
+
+
+
 def load_from_file(abspath):
     ''' Load data from file and render the netgraph '''
     global save_file
@@ -362,7 +378,7 @@ def file_selection_dialog():
 
 
 def main():
-    parser = ArgumentParser(f"Expenosa's Network Visualiser {VERSION}")
+    parser = ArgumentParser(f"Expenosa's Network Visualiser {__version__}")
     parser.add_argument('-f', '--file', type=str, default=None, help="Network json file location. Created if does not exist.")
     parser.add_argument('--web', default=False, action='store_true', help="Use web browser instead of native app window.")
     args = parser.parse_args()
@@ -373,8 +389,8 @@ def main():
     ## Allow javscript resources for pyvis to be served
     app.add_static_files('/lib', 'lib')
 
-    #redraw_graph()
     create_buttons_row()
+    init_keybinds()
 
     # load graph from file if it exists, otherwise show dialog
     if save_file:
