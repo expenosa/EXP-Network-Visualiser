@@ -18,6 +18,9 @@ class Link():
         self._to = _to.strip()
         self.msg = msg.strip()
 
+    def __str__(self) -> str:
+        return str(self.__dict__)
+
 
 class Node():
     def __new__(cls, *args, **kwargs):
@@ -55,6 +58,11 @@ class Node():
         return self.id and self.name and \
             self.colour in COLOURS and \
             self.shape in SHAPES
+    
+
+    def __str__(self) -> str:
+        return str(self.__dict__)
+
 
 
 class NetworkGraph():

@@ -4,6 +4,7 @@ __license__ = "MIT License"
 __version__ = "0.1"
 
 import os
+from typing import List
 from argparse import ArgumentParser
 from nicegui import app, ui
 import nicegui.globals as niceglobals
@@ -133,6 +134,38 @@ def create_textarea(*args, **kwargs):
     return ui.textarea(*args, **kwargs).style(DEFAULT_FIELD_STYLE)
 
 
+# Javascript integrated functions
+
+async def get_selected_node() -> str:
+    ''' Returns the name of the selected node in the gui, otherwise empty string '''
+    selected = await ui.run_javascript('network.getSelectedNodes()', timeout=3)
+    if selected:
+        return selected[0]
+    return ""
+
+
+async def get_selected_link() -> List[str]:
+    ''' Returns an array containing names of the nodes connected to the selected link, otherwise empty array '''
+    selected = await ui.run_javascript('''
+        var selectedEdges = network.getSelectedEdges();
+        if (selectedEdges && selectedEdges.length == 1) {
+            var selectedEdge = selectedEdges[0];
+            network.getConnectedNodes(selectedEdge);
+        } else {
+            Array();
+        }
+        ''', timeout=3)
+
+    if selected and len(selected) == 2:
+        return selected
+    return ["", ""]
+
+
+async def clear_selection():
+    ''' Perform the same operation as the Reset Selection button in pyvis '''
+    await ui.run_javascript('neighbourhoodHighlight({ nodes: [] });', respond=False)
+
+
 def create_buttons_row():
     with ui.footer():
         # Create Node Button
@@ -160,8 +193,12 @@ def create_buttons_row():
                 ui.button('Create', on_click=create_node_clicked)
                 ui.button('Close', on_click=new_node_dialog.close)
 
-        ui.button('Create Node', on_click=new_node_dialog.open)
+        async def show_new_node_dialog():
+            link_from_field.value = await get_selected_node()
+            new_node_dialog.open()
+        ui.button('Create Node', on_click=show_new_node_dialog)
         
+
         # Rename Node Button
         with ui.dialog() as rename_node_dialog, ui.card():
             ui.markdown("Rename Node")
@@ -178,7 +215,10 @@ def create_buttons_row():
                 ui.button('Rename', on_click=rename_node_clicked)
                 ui.button('Close', on_click=rename_node_dialog.close)
 
-        ui.button('Rename Node', on_click=rename_node_dialog.open)
+        async def show_rename_node_dialog():
+            old_name_input.value = await get_selected_node()
+            rename_node_dialog.open()
+        ui.button('Rename Node', on_click=show_rename_node_dialog)
 
 
         # Edit Node Button
@@ -217,7 +257,10 @@ def create_buttons_row():
                 apply_btn.bind_visibility_from(column)
                 ui.button('Close', on_click=edit_node_dialog.close)
 
-        ui.button('Edit Node', on_click=edit_node_dialog.open)
+        async def show_edit_node_dialog():
+            edit_node_select.value = await get_selected_node()
+            edit_node_dialog.open()
+        ui.button('Edit Node', on_click=show_edit_node_dialog)
 
 
         # Delete Node Button
@@ -236,8 +279,11 @@ def create_buttons_row():
                 ui.button('Delete', on_click=delete_node_clicked)
                 ui.button('Close', on_click=delete_node_dialog.close)
 
-        ui.button('Delete Node', on_click=delete_node_dialog.open)
-    
+        async def show_delete_node_dialog():
+            delete_node_select.value = await get_selected_node()
+            delete_node_dialog.open()
+        ui.button('Delete Node', on_click=show_delete_node_dialog)
+
 
         ## Add spacer
         ui.label("| |")
@@ -262,8 +308,11 @@ def create_buttons_row():
                     clear_comp_values(nodeA_select, nodeB_select, msg_text)
                 ui.button('Create', on_click=create_link_clicked)
                 ui.button('Close', on_click=new_link_dialog.close)
-
-        ui.button('Add Link', on_click=new_link_dialog.open)
+        
+        async def show_new_link_dialog():
+            nodeA_select.value = await get_selected_node()
+            new_link_dialog.open()
+        ui.button('Add Link', on_click=show_new_link_dialog)
 
 
         # Edit Link Button
@@ -298,7 +347,13 @@ def create_buttons_row():
                 ui.button('Apply', on_click=edit_link_clicked).bind_visibility_from(edit_msg_text)
                 ui.button('Close', on_click=edit_link_dialog.close)
 
-        ui.button('Edit Link', on_click=edit_link_dialog.open)
+        async def show_edit_link_dialog():
+            nodes = await get_selected_link()
+            if nodes:
+                edit_nodeA_input.value = nodes[0]
+                edit_nodeB_input.value = nodes[1]
+            edit_link_dialog.open()
+        ui.button('Edit Link', on_click=show_edit_link_dialog)
 
 
 
@@ -318,16 +373,39 @@ def create_buttons_row():
                 ui.button('Remove', on_click=remove_link_clicked)
                 ui.button('Close', on_click=remove_link_dialog.close)
         
-        ui.button('Remove Link', on_click=remove_link_dialog.open)
+        async def show_remove_link_dialog():
+            nodes = await get_selected_link()
+            if nodes:
+                remove_nodeA_select.value = nodes[0]
+                remove_nodeB_select.value = nodes[1]
+            remove_link_dialog.open()
+        ui.button('Remove Link', on_click=show_remove_link_dialog)
+
+
+        ## Add spacer
+        ui.label("| |")
+
+        ui.button('Reset Selection', on_click=clear_selection)
+
+        ##ui.button("Menu", on_click=menu_dialog.open).style('position: absolute; right: 30px;')
 
 
 
 def init_keybinds():
     ''' Add keybinds such as refresh on F5 '''
-    def handle_key(e: KeyEventArguments):
-        if e.key == 'F5' and not e.action.repeat:
-            if e.action.keyup:
-                ui.open('/')
+    async def handle_key(e: KeyEventArguments):
+        if not e.action.keyup and not e.action.repeat:
+            return
+        
+        # print(e.key)
+        if e.key == 'F5':
+            ui.open('/')
+        elif e.key == 'Escape':
+            await clear_selection()
+        elif e.modifiers.ctrl and e.key == 'z': # TODO undo function
+            print("Undo")
+        elif e.modifiers.ctrl and e.key == 'y': # TODO redo function
+            print("Redo")
 
     ui.keyboard(on_key=handle_key)
 
