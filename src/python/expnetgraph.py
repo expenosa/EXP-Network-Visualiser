@@ -51,7 +51,7 @@ class Node():
 
 
     def remove_link(self, name):
-        self.links = [x for x in self.links if x._to != name]
+        self.links[:] = [x for x in self.links if x._to != name]
 
 
     def is_valid(self):
@@ -152,7 +152,7 @@ class NetworkGraph():
         
         ## Delete links from other nodes
         for n in self._nodes.values():
-            n.remove_link(name)
+            n.remove_link(node.id)
 
 
 
@@ -184,7 +184,7 @@ def generate(graph: NetworkGraph) -> str:
 def save_network_graph(path: str, netgraph: NetworkGraph):
     print(f"Saving net graph to file: {path}")
     with open(path, 'w', encoding='utf-8') as f:
-        json = jsonpickle.encode(netgraph, indent=2)
+        json = save_network_graph_to_json(netgraph)
         f.write(json)
 
 
@@ -192,4 +192,12 @@ def load_network_graph(path: str) -> NetworkGraph:
     print(f"Loading netgraph from file: {path}")
     with open(path, encoding='utf-8') as f:
         json = f.read()
-        return jsonpickle.decode(json)
+        return load_network_graph_from_json(json)
+    
+
+def save_network_graph_to_json(netgraph: NetworkGraph) -> str:
+    return jsonpickle.encode(netgraph, indent=2)
+
+
+def load_network_graph_from_json(pjson: str) -> NetworkGraph:
+    return jsonpickle.decode(pjson)
