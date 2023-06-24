@@ -1,10 +1,10 @@
 __author__ = "Expenosa"
 __copyright__ = "Copyright (C) 2023 Expenosa"
 __license__ = "MIT License"
-__version__ = "0.1"
+__version__ = "0.2"
 
 import os
-from typing import List
+from typing import List, Dict
 from argparse import ArgumentParser
 from nicegui import app, ui
 import nicegui.globals as niceglobals
@@ -164,6 +164,15 @@ async def get_selected_link() -> List[str]:
 async def clear_selection():
     ''' Perform the same operation as the Reset Selection button in pyvis '''
     await ui.run_javascript('neighbourhoodHighlight({ nodes: [] });', respond=False)
+    await get_node_positions()
+
+
+async def get_node_positions() -> Dict:
+    ''' Fetch a map of x, y coordinates for every node '''
+    node_names = [ f'"{x}"' for x in netgraph.get_all_node_names() ]
+    positions = await ui.run_javascript('network.getPositions(Array(' + ','.join(node_names) + '))', timeout=10)
+    print(positions)
+
 
 
 def create_buttons_row():
@@ -387,7 +396,20 @@ def create_buttons_row():
 
         ui.button('Reset Selection', on_click=clear_selection)
 
-        ##ui.button("Menu", on_click=menu_dialog.open).style('position: absolute; right: 30px;')
+#         ## Add spacer
+#         ui.label("| |")
+
+#         ui.button(icon='menu', on_click=lambda: ui.open('/settings_page')).style('position: absolute; right: 30px;')
+
+
+
+# @ui.page('/settings_page')
+# def settings_page():
+#     ui.markdown("# Settings")
+
+#     save_positions_chkbx = ui.checkbox("Save Node Positions")
+
+#     ui.button('Back', on_click=lambda: ui.open('/'))
 
 
 
