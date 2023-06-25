@@ -5,4 +5,5 @@ cd ..
 
 REM create the virtual enviroment and install dependencies
 python -m venv env
-env\scripts\pip.exe install -r requirements.txt -r requirements.dev.txt
+env\scripts\pip.exe install -r requirements.dev.txt
+env\scripts\pip.exe install -r requirements.txt

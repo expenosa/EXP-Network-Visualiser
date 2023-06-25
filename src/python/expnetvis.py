@@ -164,11 +164,10 @@ async def get_selected_link() -> List[str]:
 async def clear_selection():
     ''' Perform the same operation as the Reset Selection button in pyvis '''
     await ui.run_javascript('neighbourhoodHighlight({ nodes: [] });', respond=False)
-    await get_node_positions()
 
 
 async def get_node_positions() -> Dict:
-    ''' Fetch a map of x, y coordinates for every node '''
+    ''' NOT USED. Fetch a map of x, y coordinates for every node '''
     node_names = [ f'"{x}"' for x in netgraph.get_all_node_names() ]
     positions = await ui.run_javascript('network.getPositions(Array(' + ','.join(node_names) + '))', timeout=10)
     print(positions)
@@ -406,8 +405,6 @@ def create_buttons_row():
 # @ui.page('/settings_page')
 # def settings_page():
 #     ui.markdown("# Settings")
-
-#     save_positions_chkbx = ui.checkbox("Save Node Positions")
 
 #     ui.button('Back', on_click=lambda: ui.open('/'))
 
