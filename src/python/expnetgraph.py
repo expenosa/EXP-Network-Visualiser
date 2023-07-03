@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import List
 from pyvis.network import Network
 from uuid import uuid4
@@ -69,6 +70,13 @@ class NetworkGraph():
     def __init__(self, nodes: List[Node]=[]):
         self._nodes = { n.id: n for n in nodes }
         self._names_map = { n.name: n.id for n in nodes }
+
+    def set_nodes(self, netgraph: NetworkGraph):
+        self._nodes.clear()
+        self._names_map.clear()
+
+        self._nodes.update(netgraph._nodes)
+        self._names_map.update(netgraph._names_map)
 
 
     def get_all_node_names(self) -> List[str]:
@@ -201,3 +209,40 @@ def save_network_graph_to_json(netgraph: NetworkGraph) -> str:
 
 def load_network_graph_from_json(pjson: str) -> NetworkGraph:
     return jsonpickle.decode(pjson)
+
+
+
+class UndoHistory():
+    def __init__(self):
+        self.undos = list()
+        self.redos = list()
+
+
+    def add_undo(self, obj):
+        jp = jsonpickle.encode(obj)
+        self.undos.append(jp)
+
+
+    def add_redo(self, obj):
+        jp = jsonpickle.encode(obj)
+        self.redos.append(jp)
+
+
+    def undo(self, obj):
+        if self.undos:
+            self.add_redo(obj)
+            jp = self.undos.pop(-1)
+            return jsonpickle.decode(jp)
+        return None
+
+
+    def redo(self, obj):
+        if self.redos:
+            self.add_undo(obj)
+            jp = self.redos.pop(-1)
+            return jsonpickle.decode(jp)
+        return None
+
+
+    def clear_redos(self):
+        self.redos.clear()

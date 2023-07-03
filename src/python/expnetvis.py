@@ -25,6 +25,8 @@ netgraph.add_node(expnetgraph.Node("First Node")) # A hack to force autocompleti
 node_names = []
 node_names.extend(netgraph.get_all_node_names())
 
+history = expnetgraph.UndoHistory()
+
 
 def clear_comp_values(*args):
     ''' Return nicegui components to default blank values '''
@@ -38,13 +40,31 @@ def netgraph_modification(func):
     '''
     def inner(*args, **kwargs):
         try:
+            history.add_undo(netgraph)
             func(*args, **kwargs)
+            history.clear_redos()
             save_netgraph()
             redraw_graph()
         except expnetgraph.NetGraphException as e:
             ui.notify(e.msg, type='negative')
             raise e
     return inner
+
+
+def undo():
+    other = history.undo(netgraph)
+    if other:
+        netgraph.set_nodes(other)
+        save_netgraph()
+        redraw_graph()
+
+
+def redo():
+    other = history.redo(netgraph)
+    if other:
+        netgraph.set_nodes(other)
+        save_netgraph()
+        redraw_graph()
 
 
 def save_netgraph():
@@ -80,9 +100,11 @@ def redraw_graph():
 
 
 @netgraph_modification
-def add_node(name, colour, shape):
+def add_node(name, colour, shape, linked_from: str="", link_msg: str=""):
     print(f"Adding new node: '{name}' with colour {colour} and shape {shape}")
     netgraph.add_node(expnetgraph.Node(name, colour=colour, shape=shape))
+    if linked_from:
+        netgraph.add_link(linked_from, name, link_msg)
 
 
 @netgraph_modification
@@ -194,9 +216,8 @@ def create_buttons_row():
                     if not node_name_field.value:
                         return
                     new_node_dialog.close()
-                    add_node(node_name_field.value, create_node_colour_select.value, create_node_shape_select.value)
-                    if (link_from_field.value):
-                        create_link(node_name_field.value, link_from_field.value, link_msg_field.value)
+                    add_node(node_name_field.value, create_node_colour_select.value, create_node_shape_select.value, 
+                             linked_from=link_from_field.value, link_msg=link_msg_field.value)
                     clear_comp_values(node_name_field, link_from_field, link_msg_field)
                 ui.button('Create', on_click=create_node_clicked)
                 ui.button('Close', on_click=new_node_dialog.close)
@@ -422,9 +443,9 @@ def init_keybinds():
         elif e.key == 'Escape':
             await clear_selection()
         elif e.modifiers.ctrl and e.key == 'z': # TODO undo function
-            print("Undo")
+            undo()
         elif e.modifiers.ctrl and e.key == 'y': # TODO redo function
-            print("Redo")
+            redo()
 
     ui.keyboard(on_key=handle_key)
 
