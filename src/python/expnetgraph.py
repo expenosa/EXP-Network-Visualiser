@@ -90,14 +90,27 @@ class NetworkGraph():
 
 
     def get_node(self, name: str) -> Node:
-        if not self.contains_node(name):
-            raise NetGraphException("Node does not exist: " + name)
+        if not name in self._names_map:         # If it's not in the name map
+            return self.__get_node_lower(name)  # true and find it by caseless search
         id = self._names_map[name]
         return self._nodes[id]
+    
+
+    def __get_node_lower(self, name: str) -> Node:
+        name_lower = name.lower()
+        for k in self._names_map.keys():
+            if k.lower() == name_lower:
+                id = self._names_map[k]
+                return self.get_node_by_id(id)
+        raise NetGraphException("Node does not exist: " + name)
 
 
     def contains_node(self, name: str) -> bool:
-        return name in self._names_map
+        try:
+            self.get_node(name)
+            return True
+        except NetGraphException:
+            return False
 
 
     def add_node(self, node: Node):

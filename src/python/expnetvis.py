@@ -102,6 +102,10 @@ def redraw_graph():
 @netgraph_modification
 def add_node(name, colour, shape, linked_from: str="", link_msg: str=""):
     print(f"Adding new node: '{name}' with colour {colour} and shape {shape}")
+    # Check link from node exists
+    if linked_from and not netgraph.contains_node(linked_from):
+        raise expnetgraph.NetGraphException(f"Linked from node does not exist: {linked_from}")
+
     netgraph.add_node(expnetgraph.Node(name, colour=colour, shape=shape))
     if linked_from:
         netgraph.add_link(linked_from, name, link_msg)
