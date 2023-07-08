@@ -1,7 +1,7 @@
 __author__ = "Expenosa"
 __copyright__ = "Copyright (C) 2023 Expenosa"
 __license__ = "MIT License"
-__version__ = "0.2"
+__version__ = "0.3"
 
 import os
 from typing import List, Dict
